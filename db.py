@@ -9,7 +9,7 @@ def create_tables():
     )
     conn.commit()
     cursor.execute(
-        "CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, name TEXT, league_id INTEGER, logo TEXT, FOREIGN KEY(league_id) REFERENCES league(id))"
+        "CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, name TEXT, logo TEXT, FOREIGN KEY(league_id) REFERENCES league(id))"
     )
     conn.commit()
     cursor.execute(
@@ -26,19 +26,19 @@ def insert_leagues(leagues):
         row[0] for row in cursor.execute("SELECT name FROM league").fetchall()
     ]
     for league in leagues:
-        if (league["name"]) not in prev_leagues:
+        if (league[0]) not in prev_leagues:
             cursor.execute(
                 "INSERT INTO league (name, year) VALUES (?, ?)",
-                (league["name"], league["year"]),
+                (league[0], league[1]),
             )
         else:
             update_league = cursor.execute(
-                "SELECT name, year FROM league WHERE name = ?", (league["name"],)
+                "SELECT name, year FROM league WHERE name = ?", (league[0],)
             ).fetchone()
-            if update_league[1] != league["year"]:
+            if update_league[1] != league[1]:
                 cursor.execute(
                     "UPDATE league SET year = ? WHERE name = ?",
-                    (league["year"], league["name"]),
+                    (league[1], league[0]),
                 )
                 cursor.execute("DELETE FROM stats")
                 cursor.execute("DELETE FROM teams")
@@ -64,45 +64,46 @@ def insert_teams(teams):
                 "UPDATE teams SET name = ?, league_id = ?, logo = ? WHERE name = ?",
                 (team["name"], team["league"], team["logo"], team["name"]),
             )
+        insert_stats(team["name"]["estadisticas"], team["name"])
     conn.commit()
     conn.close()
 
 
-def insert_stats(stats):
+def insert_stats(stat, nombreEquipo):
     conn = sqlite3.connect("soccer.db")
     cursor = conn.cursor()
+    team_id = cursor.execute("SELECT team_id FROM teams WHERE name = ?", (nombreEquipo))
     prev_stats = cursor.execute("SELECT team_id FROM stats").fetchall()
-    for stat in stats:
-        if (stat["team_id"],) in prev_stats:
-            cursor.execute(
-                "UPDATE stats SET position = ?, points = ?, played = ?, goals_against = ?, goals_for = ?, wins = ?, draws = ?, losses = ? WHERE team_id = ?",
-                (
-                    stat["position"],
-                    stat["points"],
-                    stat["played"],
-                    stat["goals_against"],
-                    stat["goals_for"],
-                    stat["wins"],
-                    stat["draws"],
-                    stat["losses"],
-                    stat["team_id"],
-                ),
-            )
-        else:
-            cursor.execute(
-                "INSERT INTO stats (position, team_id, points, played, goals_against, goals_for, wins, draws, losses) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    stat["position"],
-                    stat["team_id"],
-                    stat["points"],
-                    stat["played"],
-                    stat["goals_against"],
-                    stat["goals_for"],
-                    stat["wins"],
-                    stat["draws"],
-                    stat["losses"],
-                ),
-            )
+    if (stat["team_id"],) in prev_stats:
+        cursor.execute(
+            "UPDATE stats SET position = ?, points = ?, played = ?, goals_against = ?, goals_for = ?, wins = ?, draws = ?, losses = ? WHERE team_id = ?",
+            (
+                stat["rank"],
+                stat["points"],
+                stat["gamesPlayed"],
+                stat["pointsAgainst"],
+                stat["pointsFor"],
+                stat["wins"],
+                stat["ties"],
+                stat["losses"],
+                team_id,
+            ),
+        )
+    else:
+        cursor.execute(
+            "INSERT INTO stats (position, team_id, points, played, goals_against, goals_for, wins, draws, losses) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                stat["position"],
+                stat["team_id"],
+                stat["points"],
+                stat["played"],
+                stat["goals_against"],
+                stat["goals_for"],
+                stat["wins"],
+                stat["draws"],
+                stat["losses"],
+            ),
+        )
     conn.commit()
     conn.close()
 
